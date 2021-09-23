@@ -1,0 +1,53 @@
+import request from '@/utils/request'
+// 查询WMS上架规则表列表
+export function listWmsRulePaHeader(query) {
+  return request({
+    url: '/demo/wmsRulePaHeader/list',
+    method: 'get',
+    params: query
+  })
+}
+
+// 查询WMS上架规则表详细
+export function getWmsRulePaHeader(id) {
+  return request({
+    url: '/demo/wmsRulePaHeader/queryById?id=' + id,
+    method: 'get'
+  })
+}
+
+// 新增WMS上架规则表
+export function addWmsRulePaHeader(data) {
+  return request({
+    url: '/demo/wmsRulePaHeader/add',
+    method: 'post',
+    data: data
+  })
+}
+
+// 修改WMS上架规则表
+export function updateWmsRulePaHeader(data) {
+  return request({
+    url: '/demo/wmsRulePaHeader/edit',
+    method: 'put',
+    data: data
+  })
+}
+
+// 删除WMS上架规则表
+export function delWmsRulePaHeader(id) {
+  return request({
+    url: '/demo/wmsRulePaHeader/deleteBatch?ids=' + id,
+    method: 'delete'
+  })
+}
+
+// 导出WMS上架规则表
+export function exportWmsRulePaHeader(query) {
+  return request({
+    url: '/demo/wmsRulePaHeader/exportXls',
+    method: 'get',
+    params: query,
+    responseType: 'blob'
+  })
+}
