@@ -1,0 +1,281 @@
+<template>
+  <div class="app-container">
+    <el-form :model="queryParams" ref="queryForm" :inline="true" v-show="showSearch" label-width="68px">
+
+<el-form-item>
+        <el-button type="cyan" icon="el-icon-search" size="mini" @click="handleQuery">{{ $t("list.search") }}</el-button>
+        <el-button icon="el-icon-refresh" size="mini" @click="resetQuery">{{$t("list.reset")}}</el-button>
+      </el-form-item>
+    </el-form>
+     <vxe-toolbar custom ref="xToolbar" :refresh="{query: getList}">
+        <template #buttons>
+        <el-row :gutter="10" class="mb8">
+              <el-col :span="1.5">
+                <el-button
+                  type="primary"
+                  icon="el-icon-plus"
+                  size="mini"
+                  @click="handleAdd"
+                  v-hasPermi="['demo:wmsRulePaHeader:add']"
+                >{{$t("list.add")}}</el-button>
+              </el-col>
+              <el-col :span="1.5">
+                <el-button
+                  type="success"
+                  icon="el-icon-edit"
+                  size="mini"
+                  :disabled="single"
+                  @click="handleUpdate"
+                  v-hasPermi="['demo:wmsRulePaHeader:edit']"
+                >{{ $t("list.edit") }}</el-button>
+              </el-col>
+              <el-col :span="1.5">
+                <el-button
+                  type="danger"
+                  icon="el-icon-delete"
+                  size="mini"
+                  :disabled="multiple"
+                  @click="handleDelete"
+                  v-hasPermi="['demo:wmsRulePaHeader:remove']"
+                >{{ $t("list.delete") }}</el-button>
+              </el-col>
+              <el-col :span="1.5">
+                <el-button
+                  type="warning"
+                  icon="el-icon-download"
+                  size="mini"
+                  @click="handleExport"
+                  v-hasPermi="['demo:wmsRulePaHeader:export']"
+                >{{ $t("list.export") }}</el-button>
+              </el-col>
+            </el-row>
+        </template>
+     </vxe-toolbar>
+     <vxe-table
+        stripe
+        resizable
+        v-loading="loading"
+        column-key
+        ref="xTable"
+        class="sortable-column"
+        highlight-hover-row
+        :data="wmsRulePaHeaderList"
+        @checkbox-change="handleSelectionChange">
+        <vxe-table-column type="checkbox" width="60" />
+        <vxe-table-column field="seq" type="seq" width="50" />
+
+<vxe-table-column :title="$t('demo.wmsRulePaHeader.list.ruleCode')" align="center" field="ruleCode" />
+
+<vxe-table-column :title="$t('demo.wmsRulePaHeader.list.ruleName')" align="center" field="ruleName" />
+
+<vxe-table-column :title="$t('demo.wmsRulePaHeader.list.delFlag')" align="center" field="delFlag" />
+
+<vxe-table-column :title="$t('demo.wmsRulePaHeader.list.version')" align="center" field="version" />
+      <vxe-table-column :title="$t('list.opt')" align="center" class-name="small-padding fixed-width">
+        <template #default="{ row }">
+          <el-button
+            size="mini"
+            type="text"
+            icon="el-icon-edit"
+            @click="handleUpdate(row)"
+            v-hasPermi="['demo:wmsRulePaHeader:edit']"
+          >{{ $t("list.edit") }}</el-button>
+          <el-button
+            size="mini"
+            type="text"
+            icon="el-icon-delete"
+            @click="handleDelete(row)"
+            v-hasPermi="['demo:wmsRulePaHeader:remove']"
+          >{{ $t("list.delete") }}</el-button>
+        </template>
+      </vxe-table-column>
+    </vxe-table>
+ <pagination
+      v-show="total>0"
+      :total="total"
+      :page.sync="queryParams.pageNum"
+      :limit.sync="queryParams.pageSize"
+      @pagination="getList"
+    />
+<!-- 添加或修改对话框 -->
+    <el-dialog :title="title" :visible.sync="open" width="500px" append-to-body>
+      <el-form ref="form" :model="form" :rules="rules" label-width="80px">
+
+        <el-form-item :label="$t('demo.wmsRulePaHeader.form.ruleCode')" prop="ruleCode">
+          <el-input v-model="form.ruleCode" :placeholder="$t('demo.wmsRulePaHeader.form.ruleCodeTip')" />
+        </el-form-item>
+
+        <el-form-item :label="$t('demo.wmsRulePaHeader.form.ruleName')" prop="ruleName">
+          <el-input v-model="form.ruleName" :placeholder="$t('demo.wmsRulePaHeader.form.ruleNameTip')" />
+        </el-form-item>
+
+        <el-form-item :label="$t('demo.wmsRulePaHeader.form.delFlag')" prop="delFlag">
+          <el-input v-model="form.delFlag" :placeholder="$t('demo.wmsRulePaHeader.form.delFlagTip')" />
+        </el-form-item>
+
+        <el-form-item :label="$t('demo.wmsRulePaHeader.form.version')" prop="version">
+          <el-input v-model="form.version" :placeholder="$t('demo.wmsRulePaHeader.form.versionTip')" />
+        </el-form-item>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button type="primary" @click="submitForm">{{$t("form.submit")}}</el-button>
+        <el-button @click="cancel">{{$t("form.cancel")}}</el-button>
+      </div>
+    </el-dialog>
+  </div>
+</template>
+<script>
+import { listWmsRulePaHeader, getWmsRulePaHeader, delWmsRulePaHeader, addWmsRulePaHeader, updateWmsRulePaHeader, exportWmsRulePaHeader } from "@/api/demo/WmsRulePaHeader";
+export default {
+  name: "wmsRulePaHeader",
+  data() {
+    return {
+      // 遮罩层
+      loading: true,
+      // 选中数组
+      ids: [],
+      // 非单个禁用
+      single: true,
+      // 非多个禁用
+      multiple: true,
+      // 显示搜索条件
+      showSearch: true,
+      // 总条数
+      total: 0,
+      //表格数据
+      wmsRulePaHeaderList: [],
+      // 弹出层标题
+      title: "",
+      // 是否显示弹出层
+      open: false,
+      // 查询参数
+      queryParams: {
+        pageNum: 1,
+        pageSize: 10,
+      },
+      // 表单参数
+      form: {},
+      // 表单校验
+      rules: {
+
+      }
+    };
+  },
+  created() {
+    this.getList();
+    this.$nextTick(() => {
+            // 手动将表格和工具栏进行关联
+            this.$refs.xTable.connect(this.$refs.xToolbar)
+    })
+  },
+  methods: {
+    /** 查询列表 */
+    getList() {
+      this.loading = true;
+      listWmsRulePaHeader(this.queryParams).then(response => {
+        this.wmsRulePaHeaderList = response.result.records;
+        this.total = response.result.total;
+        this.loading = false;
+      });
+    },
+    // 取消按钮
+    cancel() {
+      this.open = false;
+      this.reset();
+    },
+    // 表单重置
+    reset() {
+      this.form = {
+        ruleCode: null,
+
+        ruleName: null,
+
+        delFlag: null,
+
+        version: null
+
+      };
+      this.resetForm("form");
+    },
+    /** 搜索按钮操作 */
+    handleQuery() {
+      this.queryParams.pageNum = 1;
+      this.getList();
+    },
+    /** 重置按钮操作 */
+    resetQuery() {
+      this.resetForm("queryForm");
+      this.handleQuery();
+    },
+    // 多选框选中数据
+    handleSelectionChange({records}) {
+      this.ids = records.map(item => item.id)
+      this.single = records.length!==1
+      this.multiple = !records.length
+    },
+    /** 新增按钮操作 */
+    handleAdd() {
+      this.reset();
+      this.open = true;
+      this.title = "添加WMS上架规则表";
+    },
+    /** 修改按钮操作 */
+    handleUpdate(row) {
+      this.reset();
+      const id = row.id || this.ids
+      getWmsRulePaHeader(id).then(response => {
+        this.form = response.result;
+        this.open = true;
+        this.title = "修改WMS上架规则表";
+      });
+    },
+    /** 提交按钮 */
+    submitForm() {
+      this.$refs["form"].validate(valid => {
+        if (valid) {
+          if (this.form.id != null) {
+            updateWmsRulePaHeader(this.form).then(response => {
+              this.msgSuccess(this.$t("form.editSuccess"));
+              this.open = false;
+              this.getList();
+            });
+          } else {
+            addWmsRulePaHeader(this.form).then(response => {
+              this.msgSuccess(this.$t("form.addSuccess"));
+              this.open = false;
+              this.getList();
+            });
+          }
+        }
+      });
+    },
+    /** 删除按钮操作 */
+    handleDelete(row) {
+      const ids = row.id || this.ids;
+      this.$confirm('是否确认删除WMS上架规则表编号为"' + ids + '"的数据项?', this.$t("form.warning"), {
+          confirmButtonText: this.$t("form.confirm"),
+          cancelButtonText: this.$t("form.cancel"),
+          type: "warning"
+        }).then(function() {
+          return delWmsRulePaHeader(ids);
+        }).then(() => {
+          this.getList();
+          this.msgSuccess(this.$t("form.delSuccess"));
+        })
+    },
+    /** 导出按钮操作 */
+    handleExport() {
+      const queryParams = this.queryParams;
+      this.$confirm(this.$t("upload.exportConfirmTip"), this.$t("form.warning"), {
+          confirmButtonText: this.$t("form.confirm"),
+          cancelButtonText: this.$t("form.cancel"),
+          type: "warning"
+        }).then(function() {
+          return exportWmsRulePaHeader(queryParams);
+        }).then(response => {
+          this.download(response,"WmsRulePaHeader");
+        })
+    }
+  }
+};
+</script>
